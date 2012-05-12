@@ -1,5 +1,7 @@
 (defproject clj.monitor "1.0.0-SNAPSHOT"
-  :description "FIXME: write description"
+  :description "Monitoring applications in clojure based on clojure-control."
+  :url "https://github.com/killme2008/clj.monitor"
+  :author "dennis zhuang(killme2008@gmail.com)"
   :dependencies [[org.clojure/clojure "1.3.0"]
                  [control "0.3.8"]
                  [com.draines/postal "1.6.0"]
