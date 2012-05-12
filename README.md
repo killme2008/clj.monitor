@@ -4,7 +4,7 @@ Monitoring applications in clojure based on [clojure-control](https://github.com
 
 #Leiningen dependency
 
-    [clj.monitor "1.0.0-SNAPSHOT"]
+    [clj.monitor "1.0.0-beta"]
 
 #Setup SSH
 
@@ -45,12 +45,13 @@ At last,start the monitors:
              :monitors [mysql-monitor])
 
 If pinging mysql fails or mysql machine's average load in 5 minutes is greater than 3,it will send an alert email to address `yourname@app.com` from ` alert@app.com`.Monitors will run every five minutes set by `* 0/5 * * * ?` -- a crontab-like string using [Quartz](http://quartz-scheduler.org/).
+
 The alert message is like:
       
       [Alert]:
 	  {:msyql-monitor
-	    {"(system-load :5 3)"                         {"mysql.app.com" false},
-         "(ping-mysql "root" "password")    {"msyql.app.com" true}}}
+	    {"(system-load :5 3)"    {"mysql.app.com" false},
+         "(ping-mysql "root" "password)"    {"msyql.app.com" true}}}
 
 It means that system load in 5 minutes is greater than 3(`false),but mysql is still alive(`true`).
 

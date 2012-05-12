@@ -1,4 +1,4 @@
-(defproject clj.monitor "1.0.0-SNAPSHOT"
+(defproject clj.monitor "1.0.0-beta"
   :description "Monitoring applications in clojure based on clojure-control."
   :url "https://github.com/killme2008/clj.monitor"
   :author "dennis zhuang(killme2008@gmail.com)"
