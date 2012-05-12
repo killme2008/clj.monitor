@@ -53,7 +53,7 @@ The alert message is like:
 	    {"(system-load :5 3)"    {"mysql.app.com" false},
          "(ping-mysql "root" "password)"    {"msyql.app.com" true}}}
 
-It means that system load in 5 minutes is greater than 3(`false),but mysql is still alive(`true`).
+It means that system load in 5 minutes is greater than 3(`false`),but mysql is still alive(`true`).
 
 #Pre-defined tasks and alerts
 
