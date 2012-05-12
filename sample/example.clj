@@ -5,7 +5,7 @@
 
 ;;define a mysql cluster
 (defcluster mysql
-  :clients [{:user "deploy" :host "mysql1"}])
+  :clients [{:user "deploy" :host "mysql.app.com"}])
 
 ;;define a monitor for mysql cluster
 (defmonitor mysql-monitor
@@ -19,7 +19,7 @@
  ;;Run monitors every five minutes
  :cron "* 0/5 * * * ?"
  ;;Send alert messages to killme2008@gmail.com when monitor fail.
- :alerts [(mail :from "killme2008@avos.com" :to "xzhuang@avos.com")]
+ :alerts [(mail :from "alert@app.com" :to "yourname@app.com")]
  ;;Monitors that are defined by defmonitor
  :monitors [mysql-monitor])
 
