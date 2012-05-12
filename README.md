@@ -35,7 +35,7 @@ Second,we define a monitor for `mysql` cluster:
 			 ;;Mysql clusters for monitoring
 			 :clusters [:mysql])
 
-The  `mysql-monitor` try to ping mysql with `root` and `passowrd`,and execute the task on `mysql` cluster.
+The  `mysql-monitor` try to ping mysql with `root` and `passowrd` and get average system load in 5 minutes,and execute the task on `mysql` cluster.
 
 At last,start the monitors:
 
@@ -45,14 +45,22 @@ At last,start the monitors:
              :monitors [mysql-monitor])
 
 If pinging mysql fails or mysql machine's average load in 5 minutes is greater than 3,it will send an alert email to address `yourname@app.com` from ` alert@app.com`.Monitors will run every five minutes set by `* 0/5 * * * ?` -- a crontab-like string using [Quartz](http://quartz-scheduler.org/).
+The alert message is like:
+      
+      [Alert]:
+	  {:msyql-monitor
+	    {"(system-load :5 3)"                         {"mysql.app.com" false},
+         "(ping-mysql "root" "password")    {"msyql.app.com" true}}}
+
+It means that system load in 5 minutes is greater than 3(`false),but mysql is still alive(`true`).
 
 #Pre-defined tasks and alerts
 
 ##Tasks
 
-* (ping-mysql "user" "pass"): `mysqladmin -u user -p'pass' ping`, make sure that mysql is alive.
-* (mysql-slave-status "user" "pass"): `mysql -u user -p'pass' -e 'show slave status\G'` ,and make sure that returns two `YES`.
-* (count-process "process" max): `ps aux |grep [process] |grep -v -c grep`,make sure the returned number is less than max.
+* (ping-mysql "user" "pass"): `mysqladmin -u user -p'pass' ping`, make sure that returns mysql is alive.
+* (mysql-slave-status "user" "pass"): `mysql -u user -p'pass' -e 'show slave status\G'` ,and make sure that it returns two `YES`.
+* (count-process "process" min): `ps aux |grep [process] |grep -v -c grep`,make sure the returned number is greater than min.
 * (service-status "app" sudo "error"): `sudo /etc/init.d/app status` ,make sure the returned output doesn't contains the error string.`sudo` is a boolean value to set whether running with sudo.
 * (ping-redis "redis://host:port"): use redis ping command to ping redis,make sure it returns `PONG`.
 * (system-load kind max): `uptime`,  the `kind` is `:1`,`:5` or `:15`,make sure that system average load in 1,5,15 minutes is less than max value.
@@ -65,7 +73,7 @@ You can define your own tasks by `deftask` in clojure-control,pelase see [Define
 * (console): write alert messages to console
 * (log):  write alert messages to log using tools.logging.
 
-You can install your now alert function by `clj.monitor.alerts/install-alert-fn`:
+You can install your own alert function by `clj.monitor.alerts/install-alert-fn`:
 
     	  (use '[clj.monitor.alerts :only [install-alert-fn]])
           (install-alert-fn :name (fn [rt & args] (println rt)))
@@ -77,7 +85,6 @@ You can install your now alert function by `clj.monitor.alerts/install-alert-fn`
 #License
 
 MIT licensed,the same with [clojure-control](https://github.com/killme2008/clojure-control/).
-
 
 
 

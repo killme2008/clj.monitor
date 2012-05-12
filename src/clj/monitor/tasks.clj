@@ -39,9 +39,9 @@
 
            ps aux |grep [process] |grep -v -c grep
   "
-  [process expect]
+  [process min]
   (let [rt (cast-int (:stdout (ssh (format "ps aux|grep  %s |grep -v -c grep" process))))]
-    (= expect rt)))
+    (>= rt min)))
 
 (deftask service-status
   "Check if a daemon service is running.Equals to:

@@ -128,6 +128,7 @@
              :cron        a crontab-like string to set monitors running time.
              :max-retry-times    max retry times to monitor when found error.
                                             When finding monito error,we will try it again at once.If the retry times is over this value,then we send alerts.
+            :enable-control-logging   whether to enable clojure-control logging.
 
     An example:
 
