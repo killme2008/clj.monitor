@@ -7,5 +7,6 @@
                  [org.clojure/tools.logging "0.2.3"]
                  [clj-redis "0.0.12"]]
   :dev-dependencies [[log4j/log4j "1.2.16"]
+                     [lein-autodoc "0.9.0"]
                      [org.slf4j/slf4j-log4j12 "1.5.6"]]
   :profiles {:dev {:resources-path ["dev"]}})
