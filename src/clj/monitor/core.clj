@@ -1,5 +1,7 @@
 (ns clj.monitor.core
   (:use [control.core]
+        [clj.monitor.timer]
+        [clojure.tools.logging :only (info warn error debug infof)]
         [clojure.walk :only [walk]]
         [clj.monitor.alerts]))
 
@@ -57,6 +59,7 @@
                                (do-begin (list* (if (keyword? coh) (name coh) coh) task)))]
                   (assoc rt tname (merge value  result)))) {}  tasks))
     (catch Throwable t
+      (error t "Execute tasks failed")
       {:exception (.getMessage t)})))
 
 (defn- cast-task
@@ -84,16 +87,28 @@
   [ & opts]
   (let [m (apply hash-map opts)
         alerts (:alerts m)
+        quartz-threads (or (:quartz-threads m) (.. (Runtime/getRuntime) (availableProcessors)))
+        sc (init-scheduler quartz-threads)
+        cron (or (:cron m) "* 0/5 * * * ?")
         monitors (map #(get-monitor (keyword %)) (:monitors m))
-        rt (apply hash-map (mapcat (fn [mt]
-                                     (let [tasks (map #(cast-task %) (:tasks mt))
-                                           clusters-or-host (or (:host mt) (map keyword (:clusters mt)))
-                                           cron (:cron mt)
-                                           error (or (:error mt) (format "Alert form monitor %s:%s" (:name mt) mt))
-                                           every (:every mt)]
-                                       (let [hr (exec-tasks tasks clusters-or-host)]
-                                         [(:name mt) (into {} hr)]))) monitors))]
-    (alert (pick-error-monitors rt) alerts)))
+        ]
+    (infof "Schedule monitor task:%s" cron)
+    (schedule-task sc (fn []
+                        (try
+                          (let [rt (apply hash-map (mapcat (fn [mt]
+                                                             (let [tasks (map #(cast-task %) (:tasks mt))
+                                                                   clusters-or-host (or (:host mt) (map keyword (:clusters mt)))
+                                                                   cron (:cron mt)
+                                                                   error (or (:error mt) (format "Alert form monitor %s:%s" (:name mt) mt))
+                                                                   every (:every mt)]
+                                                               (let [hr (exec-tasks tasks clusters-or-host)]
+                                                                 [(:name mt) (into {} hr)]))) monitors))]
+                            (alert (pick-error-monitors rt) alerts))
+                          (catch Throwable t
+                            (error t "Monitor failed")
+                            (alert t alerts))))  cron)
+    (info "Start monitor schduler...")
+    (start-scheduler sc)))
 
 ;;load pre-defined tasks and alert functions
 (load "/clj/monitor/tasks")
