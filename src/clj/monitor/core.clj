@@ -8,10 +8,13 @@
 ;;All defined monitors
 (defonce ^:private *monitors (atom {}))
 
-(defn install-monitor [name monitor]
+(defn install-monitor
+  "Install a monitor with name."
+  [name monitor]
   (swap! *monitors assoc (keyword name) monitor))
 
 (defn get-monitor [name]
+  "Get a monitor by name"
   (if (map? name)
     name
     (get @*monitors name)))
@@ -39,7 +42,17 @@
         args))
 
 (defmacro defmonitor
-  "Define a monitor"
+  "Define a monitor with options, valid options including:
+
+          :tasks       a vector of tasks for monitoring
+          :clusters   a vector of clusters for monitoring,the clusters must have been defined by defcluster.
+          :host        a string in the form of \"user@host\",if  this is provided, clj.monitor will use this user@host for monitoring instead of clusters.
+
+  An example:
+        (defmonitor mysql-monitor
+               :tasks [ (ping-msyql \"user\" \"password\")]
+               :host \"root@mysql.app.com\")
+  "
   [mname & opts]
   (let [mname (keyword mname)]
     `(let [m# (apply hash-map ~(cons 'list (unquote-opts opts)))]
@@ -62,19 +75,18 @@
       (error t "Execute tasks failed")
       {:exception (.getMessage t)})))
 
-(defn- cast-task
-  [form]
-  (let [name (name (first form))
-        args (next form)]
-    (cons name args)))
 
-(defn- alert [rt alerts]
+(defn- alert
+  "Send alert message to alert functions"
+  [rt alerts]
   (doseq [alert-form alerts]
     (if-let [f (get-alert-fn (first alert-form))]
       (apply f (cons rt (next alert-form)))
       (throw (RuntimeException. (format "Could not find alert fn :  %s" alert-form))))))
 
-(defn- pick-error-monitors [rt]
+(defn- pick-error-monitors
+  "Pick all monitors that have exception or monitor failed."
+  [rt]
   (into {} (filter (fn [[monitor m]]
                      ;;Contains exception
                      (or (contains? m :exception) )
@@ -85,25 +97,42 @@
 (defonce *monitor-started (atom false))
 
 (defmacro start-monitors
-  "Start monitors"
+  "Start monitors with options,if it has been started,this will throw an exception.
+   Valid options including:
+
+             :monitors    a vector of monitors in keyword,the monitors must have been defined by defmonitor.
+             :alerts      a vector of alert functions.
+             :parallel   whether to execute monitor task in parallel between monitors.
+             :quartz-threads    Quratz thread number,default is CPUs.
+             :cron        a crontab-like string to set monitors running time.
+
+    An example:
+
+        (start-monitor
+              :monitors [:mysql-monitor]
+              :alerts [ (mail :from \"alert@app.com\" to: \"me@app.com\")]
+              :cron   \"* */10 * * * ?\")
+   "
   [ & opts]
   (when @*monitor-started
     (throw (RuntimeException. "clj.monitors has been started")))
-  (let [m (apply hash-map (unquote-opts opts))
+  (let [m (apply hash-map opts)
         alerts (:alerts m)
+        parallel (:parallel m)
+        map-fn (if parallel pmap map)
         quartz-threads (or (:quartz-threads m) (.. (Runtime/getRuntime) (availableProcessors)))
         sc (init-scheduler quartz-threads)
         cron (or (:cron m) "* 0/5 * * * ?")
-        monitors (map #(get-monitor (keyword %)) (:monitors m))
-        ]
+        monitors (map #(get-monitor (keyword %)) (:monitors m))]
     (infof "Schedule monitor task:%s" cron)
     (schedule-task sc (fn []
                         (try
-                          (let [rt (apply hash-map (mapcat (fn [mt]
-                                                             (let [tasks (map #(cast-task %) (:tasks mt))
-                                                                   clusters-or-host (or (:host mt) (map keyword (:clusters mt)))]
-                                                               (let [hr (exec-tasks tasks clusters-or-host)]
-                                                                 [(:name mt) (into {} hr)]))) monitors))]
+                          (let [rt (apply hash-map (apply concat
+                                                          (map-fn (fn [mt]
+                                                             (let [tasks (:tasks mt)
+                                                                   clusters-or-host (or (:host mt) (map keyword (:clusters mt)))
+                                                                   hr (exec-tasks tasks clusters-or-host)]
+                                                               [(:name mt) (into {} hr)])) monitors)))]
                             (alert (pick-error-monitors rt) alerts))
                           (catch Throwable t
                             (error t "Monitor failed")
