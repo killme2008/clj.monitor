@@ -40,6 +40,10 @@ At last,start the monitors:
 
 If pinging mysql fails,it will send an alert email to address `yourname@app.com` from ` alert@app.com`.Monitors will run every five minutes set by `* 0/5 * * * ?` -- a crontab-like string using [Quartz](http://quartz-scheduler.org/).
 
+#API document
+
+* [API document](http://fnil.net/clj.monitor)
+
 #License
 
 MIT licensed,the same with [clojure-control](https://github.com/killme2008/clojure-control/).
