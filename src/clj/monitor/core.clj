@@ -82,10 +82,14 @@
                      (some  (fn [[task hm]]
                               (not-every? true? (vals hm)))  m))  rt)))
 
+(defonce *monitor-started (atom false))
+
 (defmacro start-monitors
   "Start monitors"
   [ & opts]
-  (let [m (apply hash-map opts)
+  (when @*monitor-started
+    (throw (RuntimeException. "clj.monitors has been started")))
+  (let [m (apply hash-map (unquote-opts opts))
         alerts (:alerts m)
         quartz-threads (or (:quartz-threads m) (.. (Runtime/getRuntime) (availableProcessors)))
         sc (init-scheduler quartz-threads)
@@ -97,10 +101,7 @@
                         (try
                           (let [rt (apply hash-map (mapcat (fn [mt]
                                                              (let [tasks (map #(cast-task %) (:tasks mt))
-                                                                   clusters-or-host (or (:host mt) (map keyword (:clusters mt)))
-                                                                   cron (:cron mt)
-                                                                   error (or (:error mt) (format "Alert form monitor %s:%s" (:name mt) mt))
-                                                                   every (:every mt)]
+                                                                   clusters-or-host (or (:host mt) (map keyword (:clusters mt)))]
                                                                (let [hr (exec-tasks tasks clusters-or-host)]
                                                                  [(:name mt) (into {} hr)]))) monitors))]
                             (alert (pick-error-monitors rt) alerts))
@@ -108,7 +109,15 @@
                             (error t "Monitor failed")
                             (alert t alerts))))  cron)
     (info "Start monitor schduler...")
-    (start-scheduler sc)))
+    (start-scheduler sc)
+    (reset! *monitor-started sc)))
+
+(defn stop-monitors
+  "Stop monitors"
+  []
+  (let [sc @*monitor-started]
+    (.shutdown sc true)
+    (reset! *monitor-started false)))
 
 ;;load pre-defined tasks and alert functions
 (load "/clj/monitor/tasks")

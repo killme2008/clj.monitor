@@ -10,11 +10,11 @@
 ;;define a monitor for mysql cluster
 (defmonitor mysql-monitor
   :tasks [(ping-mysql "root" "password")]
-  :clusters [:mysql]
-  :cron "0 0 6,18 * * ?")
+  :clusters [:mysql])
 
 ;;start monitors
 (start-monitors
+ :cron "* 0/5 * * * ?"
  :alerts [(mail :from "killme2008@avos.com" :to "xzhuang@avos.com")]
  :monitors [mysql-monitor])
 
