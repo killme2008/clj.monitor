@@ -52,9 +52,13 @@ namespace.
   <div style="margin-left: 1em;" class="toc-section">
     <a href="#toc0">Overview</a>
     <div style="margin-left: 1em;" class="toc-entry">
+      <a href="#clj.monitor.core/clear-monitors">clear-monitors</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
       <a href="#clj.monitor.core/defmonitor">defmonitor</a>
     </div><div style="margin-left: 1em;" class="toc-entry">
       <a href="#clj.monitor.core/install-monitor">install-monitor</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#clj.monitor.core/reset-retry-times-">reset-retry-times-</a>
     </div><div style="margin-left: 1em;" class="toc-entry">
       <a href="#clj.monitor.core/start-monitors">start-monitors</a>
     </div><div style="margin-left: 1em;" class="toc-entry">
@@ -77,6 +81,17 @@ namespace.
 <br />
 <h2>Public Variables and Functions</h2>
 <div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="clj.monitor.core/clear-monitors">clear-monitors</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (clear-monitors)
+</pre>
+  <pre id="var-docstr">Clear all defined monitors</pre>
+  
+  
+  
+</div><div id="var-entry">
   <br />
   <hr />
   <h2 id="clj.monitor.core/defmonitor">defmonitor</h2>
@@ -111,6 +126,17 @@ An example:
 </div><div id="var-entry">
   <br />
   <hr />
+  <h2 id="clj.monitor.core/reset-retry-times-">reset-retry-times-</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (reset-retry-times-)
+</pre>
+  <pre id="var-docstr">Reset retry times to zero</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
   <h2 id="clj.monitor.core/start-monitors">start-monitors</h2>
   <span id="var-type">macro</span><br />
   <pre id="var-usage">Usage: (start-monitors &amp; opts)
@@ -123,6 +149,9 @@ Valid options including:
           :parallel   whether to execute monitor task in parallel between monitors.
           :quartz-threads    Quratz thread number,default is CPUs.
           :cron        a crontab-like string to set monitors running time.
+          :max-retry-times    max retry times to monitor when found error.
+                                         When finding monito error,we will try it again at once.If the retry times is over this value,then we send alerts.
+         :enable-control-logging   whether to enable clojure-control logging.
 
  An example:
 
