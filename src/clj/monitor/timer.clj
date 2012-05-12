@@ -32,3 +32,8 @@
   "Start the quartz scheduler"
   [^Scheduler s]
   (.start s))
+
+(defn stop-scheduler
+  "Stop the quartz scheduler"
+  [^Scheduler s]
+  (.shutdown s true))

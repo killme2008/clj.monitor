@@ -5,20 +5,6 @@
         [clojure.walk :only [walk]]
         [clj.monitor.alerts]))
 
-;;All defined monitors
-(defonce ^:private *monitors (atom {}))
-
-(defn install-monitor
-  "Install a monitor with name."
-  [name monitor]
-  (swap! *monitors assoc (keyword name) monitor))
-
-(defn get-monitor [name]
-  "Get a monitor by name"
-  (if (map? name)
-    name
-    (get @*monitors name)))
-
 (defn ^:private check-valid-options
   "Throws an exception if the given option map contains keys not listed
   as valid, else returns nil."
@@ -29,6 +15,26 @@
       (apply str "Only these options are valid: "
              (first valid-keys)
              (map #(str ", " %) (rest valid-keys)))))))
+
+;;All defined monitors
+(defonce ^:private *monitors (atom {}))
+
+(defn install-monitor
+  "Install a monitor with name."
+  [name monitor]
+  (check-valid-options monitor :name :tasks :clusters :host)
+  (swap! *monitors assoc (keyword name) monitor))
+
+(defn get-monitor [name]
+  "Get a monitor by name"
+  (if (map? name)
+    name
+    (get @*monitors name)))
+
+(defn clear-monitors
+  "Clear all defined monitors"
+  []
+  (reset! *monitors {}))
 
 (defn- unquote-opts [args]
   (walk (fn [item]
@@ -73,7 +79,7 @@
                   (assoc rt tname (merge value  result)))) {}  tasks))
     (catch Throwable t
       (error t "Execute tasks failed")
-      {:exception (.getMessage t)})))
+      {:exception t})))
 
 
 (defn- alert
@@ -89,10 +95,10 @@
   [rt]
   (into {} (filter (fn [[monitor m]]
                      ;;Contains exception
-                     (or (contains? m :exception) )
-                     ;;or any task failed
-                     (some  (fn [[task hm]]
-                              (not-every? true? (vals hm)))  m))  rt)))
+                     (or (contains? m :exception)
+                         ;;or any task failed
+                         (some  (fn [[task hm]]
+                              (not-every? true? (vals hm)))  m)))  rt)))
 
 (defonce *monitor-started (atom false))
 
@@ -145,7 +151,7 @@
   "Stop monitors"
   []
   (let [sc @*monitor-started]
-    (.shutdown sc true)
+    (stop-scheduler sc)
     (reset! *monitor-started false)))
 
 ;;load pre-defined tasks and alert functions

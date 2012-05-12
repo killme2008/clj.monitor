@@ -12,7 +12,12 @@
     name
     (get @*alert-fns (keyword name))))
 
-(defn install-alert-fn!
+(defn clear-alert-fns
+  "Clear all installed alert functions"
+  []
+  (reset! *alert-fns {}))
+
+(defn install-alert-fn
   "Install a alert fn with name"
   [name f & kvs]
   (swap! *alert-fns assoc (keyword name) f)
@@ -47,4 +52,4 @@
   [rt  & opts]
   (warn (pprint-str rt)))
 
-(install-alert-fn! :log log-alert :mail mail-alert :console console-alert)
+(install-alert-fn :log log-alert :mail mail-alert :console console-alert)
