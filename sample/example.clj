@@ -9,8 +9,9 @@
 
 ;;define a monitor for mysql cluster
 (defmonitor mysql-monitor
-  ;;Tasks to monitor mysql,we just ping mysql
-  :tasks [(ping-mysql "root" "password")]
+  ;;Tasks to monitor mysql,we just ping mysql and make sure that average load in 5 minutes is less than 3
+  :tasks [(ping-mysql "root" "password")
+             (system-load :5 3)]
   ;Mysql clusters for monitoring
   :clusters [:mysql])
 

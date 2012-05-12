@@ -1,7 +1,7 @@
 (ns clj.monitor.core
   (:use [control.core]
         [clj.monitor.timer]
-        [clojure.tools.logging :only (info warn error debug infof)]
+        [clojure.tools.logging :only (info warn error debug infof debugf)]
         [clojure.walk :only [walk]]
         [clj.monitor.alerts]))
 
@@ -36,6 +36,17 @@
   []
   (reset! *monitors {}))
 
+(defonce ^:private retry-times (atom 0))
+
+(defn reset-retry-times-
+  "Reset retry times to zero"
+  []
+  (reset! retry-times 0))
+
+(defn inc-retry-times-
+  []
+  (swap! retry-times inc))
+
 (defn- unquote-opts [args]
   (walk (fn [item]
           (cond (and (seq? item) (= `unquote (first item)))
@@ -67,11 +78,12 @@
 
 (defn- exec-tasks
   "Execute tasks with clusters or an \"user@host\" string"
-  [tasks coh]
+  [tasks coh enable-logging]
+  (debugf "Execute tasks %s on cluster-or-host %s" tasks coh)
   (try
-    (binding [*enable-logging* false]
+    (binding [*enable-logging* enable-logging]
       (reduce (fn [rt task]
-                (let [tname (str (first task))
+                (let [tname (str task)
                       value (or (get rt tname) {})
                       result (if (coll? coh)
                                (mapcat #(do-begin (list* (name %) task)) coh)
@@ -81,14 +93,17 @@
       (error t "Execute tasks failed")
       {:exception t})))
 
-
 (defn- alert
   "Send alert message to alert functions"
   [rt alerts]
-  (doseq [alert-form alerts]
-    (if-let [f (get-alert-fn (first alert-form))]
-      (apply f (cons rt (next alert-form)))
-      (throw (RuntimeException. (format "Could not find alert fn :  %s" alert-form))))))
+  (try
+    (doseq [alert-form alerts]
+      (if-let [f (get-alert-fn (first alert-form))]
+        (apply f (cons rt (next alert-form)))
+        (throw (RuntimeException. (format "Could not find alert fn :  %s" alert-form)))))
+    (finally
+     ;;remember to reset retry times to be zero
+     (reset-retry-times-))))
 
 (defn- pick-error-monitors
   "Pick all monitors that have exception or monitor failed."
@@ -98,7 +113,7 @@
                      (or (contains? m :exception)
                          ;;or any task failed
                          (some  (fn [[task hm]]
-                              (not-every? true? (vals hm)))  m)))  rt)))
+                                  (not-every? true? (vals hm)))  m)))  rt)))
 
 (defonce *monitor-started (atom false))
 
@@ -111,6 +126,8 @@
              :parallel   whether to execute monitor task in parallel between monitors.
              :quartz-threads    Quratz thread number,default is CPUs.
              :cron        a crontab-like string to set monitors running time.
+             :max-retry-times    max retry times to monitor when found error.
+                                            When finding monito error,we will try it again at once.If the retry times is over this value,then we send alerts.
 
     An example:
 
@@ -125,24 +142,35 @@
   (let [m (apply hash-map opts)
         alerts (:alerts m)
         parallel (:parallel m)
+        max-retry-times (or (:max-retry-times m) 3)
+        enable-control-log (and (:enable-control-logging m) true)
         map-fn (if parallel pmap map)
         quartz-threads (or (:quartz-threads m) (.. (Runtime/getRuntime) (availableProcessors)))
         sc (init-scheduler quartz-threads)
         cron (or (:cron m) "* 0/5 * * * ?")
         monitors (map #(get-monitor (keyword %)) (:monitors m))]
     (infof "Schedule monitor task:%s" cron)
-    (schedule-task sc (fn []
-                        (try
-                          (let [rt (apply hash-map (apply concat
-                                                          (map-fn (fn [mt]
-                                                             (let [tasks (:tasks mt)
-                                                                   clusters-or-host (or (:host mt) (map keyword (:clusters mt)))
-                                                                   hr (exec-tasks tasks clusters-or-host)]
-                                                               [(:name mt) (into {} hr)])) monitors)))]
-                            (alert (pick-error-monitors rt) alerts))
-                          (catch Throwable t
-                            (error t "Monitor failed")
-                            (alert t alerts))))  cron)
+    (letfn [(sc-fn  []
+              (try
+                (let [rt (apply hash-map (apply concat
+                                                (map-fn (fn [mt]
+                                                          (let [tasks (:tasks mt)
+                                                                clusters-or-host (or (:host mt) (map keyword (:clusters mt)))
+                                                                hr (exec-tasks tasks clusters-or-host enable-control-log)]
+                                                            [(:name mt) (into {} hr)])) monitors)))
+                      error-monitors (pick-error-monitors rt)
+                      has-error (not (empty? error-monitors))
+                      over-max (>= @retry-times max-retry-times)]
+                  (cond
+                   (and has-error over-max) (alert error-monitors alerts)
+                   has-error (do (inc-retry-times-) (sc-fn))
+                   over-max (reset-retry-times-)))
+                (catch Throwable t
+                  (error t "Monitor failed")
+                  (if (>= @retry-times max-retry-times)
+                    (alert t alerts)
+                    (do (inc-retry-times-) (sc-fn))))))]
+      (schedule-task sc sc-fn  cron))
     (info "Start monitor schduler...")
     (start-scheduler sc)
     (reset! *monitor-started sc)))

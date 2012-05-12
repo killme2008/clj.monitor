@@ -51,11 +51,11 @@
    Then check if the output contains the error message.
  "
   [app sudo error]
-     (let [rt (ssh (str "/etc/init.d/" app " status") :sudo (or sudo true))
-           out (:stdout rt)
-           stderr (.trim (or (:stderr rt) ""))
-           status (:status rt)]
-       (and (zero? status) (not (> (.indexOf ^String out (or error "not running")) 0)) (empty? stderr))))
+  (let [rt (ssh (str "/etc/init.d/" app " status") :sudo (or sudo true))
+        out (:stdout rt)
+        stderr (.trim (or (:stderr rt) ""))
+        status (:status rt)]
+    (and (zero? status) (not (> (.indexOf ^String out (or error "not running")) 0)) (empty? stderr))))
 
 (deftask ping-redis
   "Ping redis to check it it is all right,use 'ping' protocol for redis.
@@ -71,6 +71,20 @@
       (finally
        (when new-cli
          (.quit ^Jedis cli))))))
+
+(deftask system-load
+  "Make sure that system load is less than max value ,valid kind including:
+       :1      average load in 1 minute.
+       :5      average load in 5 minutes.
+       :15    average load in 15 mintues.
+ "
+  [kind max]
+  (let [out (:stdout (ssh "uptime"))
+        kind (keyword kind)
+        loads (re-seq #"\d+\.\d+" out)]
+    (when loads
+      (let [kind-map (zipmap [:1 :5 :15] loads)]
+        (<= (Double/valueOf (kind kind-map))  max)))))
 
 (deftask tcp-states
   "Check TCP connection states number less than max value"
